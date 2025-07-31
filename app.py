@@ -10,6 +10,7 @@ from reportlab.lib.units import cm
 import tempfile
 import re
 import textwrap
+from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
 
 # Configuration de l'API Gemini
 GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
@@ -97,9 +98,6 @@ def main():
             )
             if youtube_url:
                 try:
-                    import re
-                    from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
-
                     match = re.search(r"(?:v=|youtu\.be/|embed/)([\w-]{11})", youtube_url)
                     if not match:
                         st.error("Impossible d'extraire l'ID de la vidéo. Veuillez vérifier l'URL.")
