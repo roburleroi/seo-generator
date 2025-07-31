@@ -224,7 +224,6 @@ Instructions particulières de l'utilisateur :
             st.success("✅ Article généré avec succès !")
             st.subheader("📄 Article généré")
             # Affichage structuré avec titres H1/H2/H3
-            import re
             lines = article.split('\n')
             for line in lines:
                 if line.startswith('# '):
