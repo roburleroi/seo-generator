@@ -107,7 +107,17 @@ def main():
                         fetched_transcript = ytt_api.fetch(video_id, languages=['fr', 'en'])
                         transcript_text = "\n".join([snippet.text for snippet in fetched_transcript])
                         st.success("✅ Transcription extraite avec succès !")
-                        context = st.text_area("Transcription extraite (modifiable)", value=transcript_text, height=200)
+                        
+                        # Affichage des 5 premières lignes de la transcription
+                        st.info("📝 **Aperçu des 5 premières lignes de la transcription :**")
+                        transcript_lines = transcript_text.split('\n')
+                        preview_lines = transcript_lines[:5]
+                        for i, line in enumerate(preview_lines, 1):
+                            if line.strip():  # Ignorer les lignes vides
+                                st.markdown(f"**{i}.** {line.strip()}")
+                        
+                        st.markdown("---")
+                        context = st.text_area("Transcription complète (modifiable)", value=transcript_text, height=200)
                 except TranscriptsDisabled:
                     st.error("La transcription est désactivée pour cette vidéo.")
                 except NoTranscriptFound:
