@@ -38,8 +38,113 @@ def generate_article(full_prompt):
         st.error(f"Erreur lors de la génération de l'article: {str(e)}")
         return None
 
-# --- Suppression de la fonction generate_pdf et du rendu PDF ---
-# (La fonction sera à réécrire plus tard avec une nouvelle logique de rendu)
+def generate_pdf_with_formatting(article_text, filename="article_generé.pdf"):
+    """Génère un PDF avec la mise en forme conservée (H1, H2, H3)"""
+    try:
+        # Créer un fichier temporaire pour le PDF
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
+            c = canvas.Canvas(tmp_file.name, pagesize=A4)
+            width, height = A4
+            
+            # Configuration des styles
+            title_font_size = 18
+            header_font_size = 14
+            subheader_font_size = 12
+            normal_font_size = 10
+            line_height = 1.2
+            
+            # Marges
+            margin_left = 2 * cm
+            margin_right = 2 * cm
+            margin_top = 2 * cm
+            margin_bottom = 2 * cm
+            
+            # Position initiale
+            y_position = height - margin_top
+            line_spacing = normal_font_size * line_height
+            
+            # Traitement du texte ligne par ligne
+            lines = article_text.split('\n')
+            
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    y_position -= line_spacing
+                    continue
+                
+                # Déterminer le style selon le formatage
+                if line.startswith('# '):
+                    # Titre principal (H1)
+                    font_size = title_font_size
+                    font_style = 'bold'
+                    line_content = line[2:].strip()
+                    y_position -= line_spacing * 1.5
+                elif line.startswith('## '):
+                    # En-tête (H2)
+                    font_size = header_font_size
+                    font_style = 'bold'
+                    line_content = line[3:].strip()
+                    y_position -= line_spacing * 1.3
+                elif line.startswith('### '):
+                    # Sous-en-tête (H3)
+                    font_size = subheader_font_size
+                    font_style = 'bold'
+                    line_content = line[4:].strip()
+                    y_position -= line_spacing * 1.2
+                else:
+                    # Texte normal
+                    font_size = normal_font_size
+                    font_style = 'normal'
+                    line_content = line
+                    y_position -= line_spacing
+                
+                # Vérifier si on doit passer à la page suivante
+                if y_position < margin_bottom:
+                    c.showPage()
+                    y_position = height - margin_top
+                
+                # Appliquer le style et dessiner le texte
+                c.setFont("Helvetica-Bold" if font_style == 'bold' else "Helvetica", font_size)
+                
+                # Gérer le retour à la ligne automatique pour les longues lignes
+                available_width = width - margin_left - margin_right
+                words = line_content.split()
+                current_line = ""
+                
+                for word in words:
+                    test_line = current_line + " " + word if current_line else word
+                    if c.stringWidth(test_line, "Helvetica-Bold" if font_style == 'bold' else "Helvetica", font_size) <= available_width:
+                        current_line = test_line
+                    else:
+                        # Dessiner la ligne actuelle
+                        c.drawString(margin_left, y_position, current_line)
+                        y_position -= line_spacing
+                        
+                        # Vérifier si on doit passer à la page suivante
+                        if y_position < margin_bottom:
+                            c.showPage()
+                            y_position = height - margin_top
+                        
+                        current_line = word
+                
+                # Dessiner la dernière ligne
+                if current_line:
+                    c.drawString(margin_left, y_position, current_line)
+            
+            c.save()
+            
+            # Lire le fichier PDF généré
+            with open(tmp_file.name, 'rb') as pdf_file:
+                pdf_bytes = pdf_file.read()
+            
+            # Nettoyer le fichier temporaire
+            os.unlink(tmp_file.name)
+            
+            return pdf_bytes
+            
+    except Exception as e:
+        st.error(f"Erreur lors de la génération du PDF: {str(e)}")
+        return None
 
 
 def main():
@@ -51,11 +156,6 @@ def main():
     
     st.title("📝 Générateur d'Articles SEO")
     st.markdown("---")
-    
-    # Sidebar pour les paramètres
-    with st.sidebar:
-        st.header("⚙️ Configuration")
-        st.info("Le prompt utilisé est optimisé pour le freelancing et le SEO. Remplis les champs principaux dans l'interface.")
     
     # Zone principale
     col1, col2 = st.columns([1, 1])
@@ -236,8 +336,28 @@ Instructions particulières de l'utilisateur :
                     st.markdown('&nbsp;')  # espace visuel
                 else:
                     st.markdown(line)
-            # Suppression du bouton de téléchargement PDF
-            # (Aucun bouton de téléchargement n'est affiché)
+            # Bouton de téléchargement PDF
+            st.markdown("---")
+            st.subheader("📥 Téléchargement")
+            
+            # Générer le PDF avec la mise en forme
+            pdf_bytes = generate_pdf_with_formatting(article)
+            if pdf_bytes:
+                # Créer un nom de fichier avec la date
+                from datetime import datetime
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"article_seo_{timestamp}.pdf"
+                
+                st.download_button(
+                    label="📄 Télécharger l'article en PDF",
+                    data=pdf_bytes,
+                    file_name=filename,
+                    mime="application/pdf",
+                    help="Téléchargez votre article au format PDF avec la mise en forme conservée"
+                )
+            else:
+                st.error("❌ Erreur lors de la génération du PDF")
+            
             st.subheader("📊 Statistiques")
             word_count = len(article.split())
             char_count = len(article)
