@@ -63,7 +63,11 @@ def main():
         st.subheader("📄 Transcription vidéo (PDF) ou contexte")
         input_method = st.radio(
             "Comment souhaitez-vous fournir la transcription ou le contexte ?",
-            ["📁 Uploader un fichier PDF (transcription)", "✏️ Saisir le contexte manuellement"]
+            [
+                "📁 Uploader un fichier PDF (transcription)",
+                "✏️ Saisir le contexte manuellement",
+                "🔗 Entrer l'URL d'une vidéo YouTube"
+            ]
         )
         context = ""
         if input_method == "📁 Uploader un fichier PDF (transcription)":
@@ -80,12 +84,38 @@ def main():
                     context = st.text_area("Transcription extraite (modifiable)", value=context, height=200)
                 else:
                     st.error("❌ Impossible d'extraire le contenu du PDF")
-        else:
+        elif input_method == "✏️ Saisir le contexte manuellement":
             context = st.text_area(
                 "Saisissez la transcription ou le contexte de votre article",
                 height=200,
                 placeholder="Collez ici la transcription vidéo ou décrivez le contexte..."
             )
+        elif input_method == "🔗 Entrer l'URL d'une vidéo YouTube":
+            youtube_url = st.text_input(
+                "Collez l'URL de la vidéo YouTube",
+                placeholder="https://www.youtube.com/watch?v=..."
+            )
+            if youtube_url:
+                try:
+                    import re
+                    from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
+
+                    match = re.search(r"(?:v=|youtu\.be/|embed/)([\w-]{11})", youtube_url)
+                    if not match:
+                        st.error("Impossible d'extraire l'ID de la vidéo. Veuillez vérifier l'URL.")
+                    else:
+                        video_id = match.group(1)
+                        ytt_api = YouTubeTranscriptApi()
+                        fetched_transcript = ytt_api.fetch(video_id, languages=['fr', 'en'])
+                        transcript_text = "\n".join([snippet.text for snippet in fetched_transcript])
+                        st.success("✅ Transcription extraite avec succès !")
+                        context = st.text_area("Transcription extraite (modifiable)", value=transcript_text, height=200)
+                except TranscriptsDisabled:
+                    st.error("La transcription est désactivée pour cette vidéo.")
+                except NoTranscriptFound:
+                    st.error("Aucune transcription trouvée pour cette vidéo.")
+                except Exception as e:
+                    st.error(f"Erreur lors de la récupération de la transcription : {e}")
     
     with col2:
         st.subheader("📝 Sujet principal de l'article")
