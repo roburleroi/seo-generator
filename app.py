@@ -39,7 +39,7 @@ def generate_article(full_prompt):
         return None
 
 def generate_pdf_with_formatting(article_text, filename="article_generé.pdf"):
-    """Génère un PDF avec la mise en forme conservée (H1, H2, H3)"""
+    """Génère un PDF avec la mise en forme conservée (H1, H2, H3 et gras)"""
     try:
         # Créer un fichier temporaire pour le PDF
         with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
@@ -63,6 +63,62 @@ def generate_pdf_with_formatting(article_text, filename="article_generé.pdf"):
             y_position = height - margin_top
             line_spacing = normal_font_size * line_height
             
+            def process_text_with_bold(text, font_size, base_style='normal'):
+                """Traite le texte en conservant le formatage gras"""
+                # Rechercher les parties en gras (**texte**)
+                import re
+                bold_pattern = r'\*\*(.*?)\*\*'
+                parts = re.split(bold_pattern, text)
+                
+                x_position = margin_left
+                for i, part in enumerate(parts):
+                    if not part:
+                        continue
+                    
+                    # Déterminer si cette partie doit être en gras
+                    is_bold = (i % 2 == 1)  # Les parties impaires sont celles entre **
+                    font_style = 'bold' if is_bold else base_style
+                    
+                    # Vérifier si on doit passer à la page suivante
+                    if y_position < margin_bottom:
+                        c.showPage()
+                        y_position = height - margin_top
+                        x_position = margin_left
+                    
+                    # Appliquer le style
+                    c.setFont("Helvetica-Bold" if font_style == 'bold' else "Helvetica", font_size)
+                    
+                    # Gérer le retour à la ligne automatique
+                    available_width = width - margin_left - margin_right
+                    words = part.split()
+                    current_line = ""
+                    
+                    for word in words:
+                        test_line = current_line + " " + word if current_line else word
+                        if c.stringWidth(test_line, "Helvetica-Bold" if font_style == 'bold' else "Helvetica", font_size) <= available_width:
+                            current_line = test_line
+                        else:
+                            # Dessiner la ligne actuelle
+                            if current_line:
+                                c.drawString(x_position, y_position, current_line)
+                                y_position -= line_spacing
+                                x_position = margin_left  # Retour à la marge gauche pour la suite
+                                
+                                # Vérifier si on doit passer à la page suivante
+                                if y_position < margin_bottom:
+                                    c.showPage()
+                                    y_position = height - margin_top
+                            
+                            current_line = word
+                    
+                    # Dessiner la dernière ligne de cette partie
+                    if current_line:
+                        c.drawString(x_position, y_position, current_line)
+                        # Calculer la position X pour la suite
+                        x_position += c.stringWidth(current_line, "Helvetica-Bold" if font_style == 'bold' else "Helvetica", font_size)
+                
+                return y_position
+            
             # Traitement du texte ligne par ligne
             lines = article_text.split('\n')
             
@@ -76,60 +132,27 @@ def generate_pdf_with_formatting(article_text, filename="article_generé.pdf"):
                 if line.startswith('# '):
                     # Titre principal (H1)
                     font_size = title_font_size
-                    font_style = 'bold'
                     line_content = line[2:].strip()
                     y_position -= line_spacing * 1.5
+                    y_position = process_text_with_bold(line_content, font_size, 'bold')
                 elif line.startswith('## '):
                     # En-tête (H2)
                     font_size = header_font_size
-                    font_style = 'bold'
                     line_content = line[3:].strip()
                     y_position -= line_spacing * 1.3
+                    y_position = process_text_with_bold(line_content, font_size, 'bold')
                 elif line.startswith('### '):
                     # Sous-en-tête (H3)
                     font_size = subheader_font_size
-                    font_style = 'bold'
                     line_content = line[4:].strip()
                     y_position -= line_spacing * 1.2
+                    y_position = process_text_with_bold(line_content, font_size, 'bold')
                 else:
                     # Texte normal
                     font_size = normal_font_size
-                    font_style = 'normal'
                     line_content = line
                     y_position -= line_spacing
-                
-                # Vérifier si on doit passer à la page suivante
-                if y_position < margin_bottom:
-                    c.showPage()
-                    y_position = height - margin_top
-                
-                # Appliquer le style et dessiner le texte
-                c.setFont("Helvetica-Bold" if font_style == 'bold' else "Helvetica", font_size)
-                
-                # Gérer le retour à la ligne automatique pour les longues lignes
-                available_width = width - margin_left - margin_right
-                words = line_content.split()
-                current_line = ""
-                
-                for word in words:
-                    test_line = current_line + " " + word if current_line else word
-                    if c.stringWidth(test_line, "Helvetica-Bold" if font_style == 'bold' else "Helvetica", font_size) <= available_width:
-                        current_line = test_line
-                    else:
-                        # Dessiner la ligne actuelle
-                        c.drawString(margin_left, y_position, current_line)
-                        y_position -= line_spacing
-                        
-                        # Vérifier si on doit passer à la page suivante
-                        if y_position < margin_bottom:
-                            c.showPage()
-                            y_position = height - margin_top
-                        
-                        current_line = word
-                
-                # Dessiner la dernière ligne
-                if current_line:
-                    c.drawString(margin_left, y_position, current_line)
+                    y_position = process_text_with_bold(line_content, font_size, 'normal')
             
             c.save()
             
